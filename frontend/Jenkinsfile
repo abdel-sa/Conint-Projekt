@@ -1,0 +1,103 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = 'secret-notes-frontend'
+    DOCKERHUB_CREDS = credentials('dockerhub-credentials')
+    SONAR_TOKEN = credentials('sonarqube-token')
+    SNYK_TOKEN = credentials('snyk-token')
+    SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
+    POSTHOG_PUBLIC_KEY = credentials('posthog-public-key')
+  }
+
+  stages {
+    stage('Lint') {
+      steps {
+        dir('frontend') {
+          sh 'npm ci'
+          sh '''
+            sonar-scanner \
+              -Dsonar.projectKey=secret-notes-frontend \
+              -Dsonar.sources=src \
+              -Dsonar.host.url=$SONAR_HOST_URL \
+              -Dsonar.login=$SONAR_TOKEN
+          '''
+          sh 'npx snyk auth $SNYK_TOKEN && npx snyk test --severity-threshold=high'
+        }
+      }
+    }
+
+    stage('Unit Test') {
+      steps {
+        dir('frontend') {
+          sh 'npm test -- --coverage'
+        }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        dir('frontend') {
+          sh "docker build -t ${IMAGE_NAME}:${env.GIT_COMMIT} ."
+        }
+      }
+    }
+
+    stage('Deliver') {
+      when { branch 'deploy/production' }
+      steps {
+        dir('frontend') {
+          sh 'echo $DOCKERHUB_CREDS_PSW | docker login -u $DOCKERHUB_CREDS_USR --password-stdin'
+          sh """
+            docker build \
+              --build-arg VITE_API_URL=$STAGING_API_URL \
+              --build-arg VITE_POSTHOG_KEY=$POSTHOG_PUBLIC_KEY \
+              -t $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT} .
+          """
+          sh "docker tag $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT} $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:latest"
+          sh "docker push $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT}"
+          sh "docker push $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:latest"
+        }
+      }
+    }
+
+    stage('Deploy (Green)') {
+      when { branch 'deploy/production' }
+      steps {
+        sshagent(['aws-ec2-ssh-key']) {
+          sh """
+            ssh -o StrictHostKeyChecking=no $AWS_EC2_USER@$AWS_EC2_HOST \
+              'IMAGE_TAG=${env.GIT_COMMIT} bash /opt/secret-notes/deploy/deploy-green.sh frontend'
+          """
+        }
+      }
+    }
+
+    stage('E2E & Performance + Switch') {
+      when { branch 'deploy/production' }
+      steps {
+        dir('frontend') {
+          sh 'npx playwright install --with-deps'
+          sh "BASE_URL=$STAGING_GREEN_URL npx playwright test"
+          sh "BASE_URL=$STAGING_GREEN_URL k6 run perf/homepage.k6.js"
+        }
+        sshagent(['aws-ec2-ssh-key']) {
+          sh """
+            ssh -o StrictHostKeyChecking=no $AWS_EC2_USER@$AWS_EC2_HOST \
+              'bash /opt/secret-notes/deploy/switch-blue-green.sh frontend'
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    failure {
+      sh '''
+        curl -X POST -H "Content-Type: application/json" \
+          -d "{\\"text\\": \\"Frontend pipeline failed on branch ${BRANCH_NAME}, build #${BUILD_NUMBER}. See ${BUILD_URL}\\"}" \
+          $SLACK_WEBHOOK_URL
+      '''
+    }
+  }
+}

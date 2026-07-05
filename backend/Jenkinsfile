@@ -1,0 +1,102 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = 'secret-notes-backend'
+    DOCKERHUB_CREDS = credentials('dockerhub-credentials')
+    SONAR_TOKEN = credentials('sonarqube-token')
+    SNYK_TOKEN = credentials('snyk-token')
+    SLACK_WEBHOOK_URL = credentials('slack-webhook-url')
+  }
+
+  stages {
+    stage('Lint') {
+      steps {
+        dir('backend') {
+          sh 'npm ci'
+          sh '''
+            sonar-scanner \
+              -Dsonar.projectKey=secret-notes-backend \
+              -Dsonar.sources=src \
+              -Dsonar.host.url=$SONAR_HOST_URL \
+              -Dsonar.login=$SONAR_TOKEN
+          '''
+          sh 'npx snyk auth $SNYK_TOKEN && npx snyk test --severity-threshold=high'
+        }
+      }
+    }
+
+    stage('Unit Test') {
+      steps {
+        dir('backend') {
+          sh 'npm test'
+        }
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: 'backend/coverage/junit.xml'
+        }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        dir('backend') {
+          sh "docker build -t ${IMAGE_NAME}:${env.GIT_COMMIT} ."
+        }
+      }
+    }
+
+    stage('Deliver') {
+      when { branch 'deploy/production' }
+      steps {
+        dir('backend') {
+          sh 'echo $DOCKERHUB_CREDS_PSW | docker login -u $DOCKERHUB_CREDS_USR --password-stdin'
+          sh "docker tag ${IMAGE_NAME}:${env.GIT_COMMIT} $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT}"
+          sh "docker tag ${IMAGE_NAME}:${env.GIT_COMMIT} $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:latest"
+          sh "docker push $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT}"
+          sh "docker push $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:latest"
+        }
+      }
+    }
+
+    stage('Deploy (Green)') {
+      when { branch 'deploy/production' }
+      steps {
+        sshagent(['aws-ec2-ssh-key']) {
+          sh """
+            ssh -o StrictHostKeyChecking=no $AWS_EC2_USER@$AWS_EC2_HOST \
+              'IMAGE_TAG=${env.GIT_COMMIT} bash /opt/secret-notes/deploy/deploy-green.sh backend'
+          """
+        }
+      }
+    }
+
+    stage('E2E & Performance + Switch') {
+      when { branch 'deploy/production' }
+      steps {
+        dir('backend') {
+          sh 'npx playwright install --with-deps'
+          sh "BASE_URL=$STAGING_GREEN_URL npx playwright test"
+          sh "BASE_URL=$STAGING_GREEN_URL k6 run perf/notes.k6.js"
+        }
+        sshagent(['aws-ec2-ssh-key']) {
+          sh """
+            ssh -o StrictHostKeyChecking=no $AWS_EC2_USER@$AWS_EC2_HOST \
+              'bash /opt/secret-notes/deploy/switch-blue-green.sh backend'
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    failure {
+      sh '''
+        curl -X POST -H "Content-Type: application/json" \
+          -d "{\\"text\\": \\"Backend pipeline failed on branch ${BRANCH_NAME}, build #${BUILD_NUMBER}. See ${BUILD_URL}\\"}" \
+          $SLACK_WEBHOOK_URL
+      '''
+    }
+  }
+}

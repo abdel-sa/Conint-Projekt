@@ -1,0 +1,31 @@
+{
+  "name": "secret-notes-backend",
+  "version": "1.0.0",
+  "description": "Secret Notes backend (Fastify) - encrypts and stores user notes",
+  "main": "src/app.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "jest --coverage",
+    "test:e2e": "playwright test",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/test"],
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ]
+  }
+}
