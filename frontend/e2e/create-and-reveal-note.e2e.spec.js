@@ -7,9 +7,14 @@ test('user can create a note and reveal it with the correct passphrase', async (
   await page.locator('form').first().getByLabel('Passphrase', { exact: true }).fill('e2e-ui-passphrase');
   await page.getByRole('button', { name: 'Create note' }).click();
 
-  await expect(page.getByRole('status').first()).toContainText('Note created securely');
+  const createdStatus = page.getByRole('status').first();
+  await expect(createdStatus).toContainText('Note created securely');
 
-  await page.getByRole('button', { name: /\(/ }).first().click();
+  const createdText = await createdStatus.textContent();
+  const noteId = createdText.match(/id:\s*([^)]+)/)?.[1];
+  expect(noteId).toBeTruthy();
+
+  await page.getByRole('button', { name: new RegExp(noteId) }).click();
   await page.locator('form').nth(1).getByLabel('Passphrase', { exact: true }).fill('e2e-ui-passphrase');
   await page.getByRole('button', { name: 'Reveal' }).click();
 
@@ -23,7 +28,14 @@ test('shows an error when the passphrase is wrong', async ({ page }) => {
   await page.locator('form').first().getByLabel('Passphrase', { exact: true }).fill('correct-passphrase');
   await page.getByRole('button', { name: 'Create note' }).click();
 
-  await page.getByRole('button', { name: /\(/ }).first().click();
+  const createdStatus = page.getByRole('status').first();
+  await expect(createdStatus).toContainText('Note created securely');
+
+  const createdText = await createdStatus.textContent();
+  const noteId = createdText.match(/id:\s*([^)]+)/)?.[1];
+  expect(noteId).toBeTruthy();
+
+  await page.getByRole('button', { name: new RegExp(noteId) }).click();
   await page.locator('form').nth(1).getByLabel('Passphrase', { exact: true }).fill('wrong-passphrase');
   await page.getByRole('button', { name: 'Reveal' }).click();
 
