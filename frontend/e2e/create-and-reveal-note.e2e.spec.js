@@ -13,7 +13,7 @@ test('user can create a note and reveal it with the correct passphrase', async (
   await page.locator('form').nth(1).getByLabel('Passphrase', { exact: true }).fill('e2e-ui-passphrase');
   await page.getByRole('button', { name: 'Reveal' }).click();
 
-  await expect(page.getByRole('status').last()).toContainText('e2e ui secret');
+  await expect(page.getByText('e2e ui secret')).toBeVisible();
 });
 
 test('shows an error when the passphrase is wrong', async ({ page }) => {
