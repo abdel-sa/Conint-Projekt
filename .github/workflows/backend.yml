@@ -3,7 +3,7 @@ name: Backend CI/CD
 on:
   push:
     branches: [main, deploy/production]
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "deploy/**", ".github/workflows/backend.yml"]
 
 defaults:
   run:
