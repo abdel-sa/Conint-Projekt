@@ -18,13 +18,15 @@ pipeline {
       steps {
         dir('backend') {
           sh 'npm ci'
-          sh '''
-            sonar-scanner \
-              -Dsonar.projectKey=secret-notes-backend \
-              -Dsonar.sources=src \
-              -Dsonar.host.url=$SONAR_HOST_URL \
-              -Dsonar.login=$SONAR_TOKEN
-          '''
+          withEnv(["PATH+SONAR=${tool 'SonarScanner'}/bin"]) {
+            sh '''
+              sonar-scanner \
+                -Dsonar.projectKey=secret-notes-backend \
+                -Dsonar.sources=src \
+                -Dsonar.host.url=$SONAR_HOST_URL \
+                -Dsonar.login=$SONAR_TOKEN
+            '''
+          }
           sh 'npx snyk auth $SNYK_TOKEN && npx snyk test --severity-threshold=high'
         }
       }
