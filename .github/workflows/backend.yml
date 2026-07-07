@@ -3,7 +3,7 @@ name: Backend CI/CD
 on:
   push:
     branches: [main, deploy/production]
-    paths: ["backend/**", ".github/workflows/backend.yml"]
+    paths: ["backend/**", "deploy/**", ".github/workflows/backend.yml"]
 
 defaults:
   run:
@@ -25,18 +25,22 @@ jobs:
           node-version: 22
       - run: npm ci
       - name: SonarQube Scan
-        uses: sonarsource/sonarqube-scan-action@v4
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           projectBaseDir: backend
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY_BACKEND }}
+            -Dsonar.sources=src
       - name: Snyk security scan
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high
+          args: --severity-threshold=high --file=backend/package.json --package-manager=npm
+
 
   test:
     name: Unit Tests (Jest)

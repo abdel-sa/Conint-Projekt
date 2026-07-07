@@ -15,7 +15,7 @@ else
   NEXT="blue"
 fi
 
-ln -sf "active-color-${NEXT}.conf" active-color.conf
+cp "active-color-${NEXT}.conf" active-color.conf
 echo -n "$NEXT" > .active-color
 
 docker compose -f docker-compose.blue-green.yml exec router nginx -s reload
