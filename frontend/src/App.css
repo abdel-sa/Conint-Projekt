@@ -17,7 +17,27 @@
   color: white;
 }
 
+/* PostHog A/B UI variant */
+.app[data-theme='variant-b'] {
+  background: #f0f7ff;
+}
+
+.app[data-theme='variant-b'] h1::after {
+  content: " – Variant B";
+  font-size: 0.4em;
+  margin-left: 0.5rem;
+  color: #2563eb;
+}
+
 .app[data-theme='variant-b'] button {
-  background: #16a34a;
+  border-radius: 999px;
+  background-color: #2563eb;
   color: white;
+  font-weight: bold;
+}
+
+.app[data-theme='variant-b'] input,
+.app[data-theme='variant-b'] textarea {
+  border: 2px solid #2563eb;
+  border-radius: 8px;
 }

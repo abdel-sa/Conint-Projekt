@@ -1,16 +1,27 @@
 import posthog from 'posthog-js';
 
 const UI_VARIANT_FLAG = 'secret-notes-ui-variant-b';
-let initialized = false;
 
 export function initFeatureFlags() {
   const key = import.meta.env.VITE_POSTHOG_KEY;
-  if (!key || initialized) return;
+  const host = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
-  posthog.init(key, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
-  });
-  initialized = true;
+  if (!key) {
+    console.warn('PostHog key missing');
+    return false;
+  }
+
+  if (!posthog.__loaded) {
+    posthog.init(key, {
+      api_host: host,
+      capture_pageview: true,
+      loaded: (ph) => {
+        ph.capture('secret_notes_app_loaded');
+      },
+    });
+  }
+
+  return true;
 }
 
 export function isVariantBEnabled() {
@@ -21,4 +32,8 @@ export function isVariantBEnabled() {
   }
 }
 
-export { UI_VARIANT_FLAG };
+export function onFeatureFlagsLoaded(callback) {
+  posthog.onFeatureFlags(() => {
+    callback(isVariantBEnabled());
+  });
+}

@@ -28,7 +28,7 @@ test.describe('Secret Notes API (staging)', () => {
   });
 
   test('health endpoint reports ok', async ({ request }) => {
-    const response = await request.get('/health');
+    const response = await request.get('/api/health');
     expect(response.status()).toBe(200);
     expect((await response.json()).status).toBe('ok');
   });
