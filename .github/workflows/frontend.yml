@@ -64,7 +64,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t $IMAGE_NAME:${{ github.sha }} .
+      - run: |
+    docker build \
+      --build-arg VITE_API_URL=${{ secrets.STAGING_API_URL }} \
+      --build-arg VITE_POSTHOG_KEY=${{ secrets.POSTHOG_PUBLIC_KEY }} \
+      --build-arg VITE_POSTHOG_HOST=${{ secrets.POSTHOG_HOST }} \
+      -t $IMAGE_NAME:${{ github.sha }} .
 
   deliver:
     name: Deliver (Push to Docker Hub)
@@ -84,6 +89,7 @@ jobs:
           build-args: |
             VITE_API_URL=${{ secrets.STAGING_API_URL }}
             VITE_POSTHOG_KEY=${{ secrets.POSTHOG_PUBLIC_KEY }}
+            VITE_POSTHOG_HOST=${{ secrets.POSTHOG_HOST }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
