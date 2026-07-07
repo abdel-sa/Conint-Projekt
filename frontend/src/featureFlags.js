@@ -25,7 +25,11 @@ export function initFeatureFlags() {
 }
 
 export function isVariantBEnabled() {
-  return posthog.isFeatureEnabled(UI_VARIANT_FLAG) === true;
+  try {
+    return posthog.isFeatureEnabled(UI_VARIANT_FLAG) === true;
+  } catch {
+    return false;
+  }
 }
 
 export function onFeatureFlagsLoaded(callback) {
