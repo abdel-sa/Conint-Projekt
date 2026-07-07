@@ -1,6 +1,10 @@
 pipeline {
   agent any
 
+  tools {
+    nodejs 'Node22'
+  }
+
   environment {
     IMAGE_NAME = 'secret-notes-frontend'
     DOCKERHUB_CREDS = credentials('dockerhub-credentials')
@@ -52,6 +56,7 @@ pipeline {
             docker build \
               --build-arg VITE_API_URL=$STAGING_API_URL \
               --build-arg VITE_POSTHOG_KEY=$POSTHOG_PUBLIC_KEY \
+              --build-arg VITE_POSTHOG_HOST=$POSTHOG_HOST \
               -t $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT} .
           """
           sh "docker tag $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:${env.GIT_COMMIT} $DOCKERHUB_CREDS_USR/${IMAGE_NAME}:latest"
