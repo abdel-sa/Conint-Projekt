@@ -17,10 +17,6 @@
   color: white;
 }
 
-.app[data-theme='variant-b'] button {
-  background: #16a34a;
-  color: white;
-}
 /* PostHog A/B UI variant */
 .app[data-theme='variant-b'] {
   background: #f0f7ff;
