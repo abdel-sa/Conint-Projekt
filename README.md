@@ -66,3 +66,4 @@ Each of the two apps (`backend`, `frontend`) has its own pipeline, run on **two*
 
 See [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) for the full FHTW-template writeup
 (infrastructure, SonarQube, Snyk, PostHog, Blue/Green details, etc.).
+Test
