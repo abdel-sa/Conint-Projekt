@@ -26,7 +26,7 @@ function App() {
 
     return (
         <div className="app" data-theme={variantB ? 'variant-b' : 'variant-a'}>
-            <h1>Secret Notes</h1>
+            <h1>Test</h1>
             <p>Notes are encrypted on the server and can only be read with the correct passphrase.</p>
 
             <CreateNote onCreated={() => setRefreshKey((k) => k + 1)} />
